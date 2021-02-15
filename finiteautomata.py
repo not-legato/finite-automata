@@ -53,9 +53,12 @@ class NFA:
         rep = ""
         for state in self.states:
             rep += f"{state}: " + "{"
-            for c in self.alphabet:
-                temp = "{" + ", ".join(self.delta(state, c)) + "}"
-                rep += f"{c} -> {temp}, "
+            for c in self.alphabet + ("epsilon",):
+                try:
+                    temp = "{" + ", ".join(self.delta(state, c)) + "}"
+                    rep += f"{c} -> {temp}, "
+                except:
+                    continue
             rep = rep[:-2] + "}"
             representations.append(rep)
             rep = ""
@@ -94,18 +97,23 @@ def NFAtoDFA(M: NFA):
 
     # redefine d' to include epsilon-paths.
     def delta_prime(states: tuple, input: str):
-        return tuple(sorted(list(set(E(deltaprime(states, input)))))) # oh no.
+        return tuple(sorted(list(set(E(deltaprime(states, input)))))) # oh no. using sets will fix this.
 
     q0 = E(tuple(M.start)) # start state must contain empty string connections.
 
     # the theoretical construction is now complete.
     return DFA(Q_prime, M.alphabet, delta_prime, q0, F_prime)
 
-
 # if a state has no arrows pointing to it (and is not a start state),
-# remove from machine. TODO.
-def stripDeadEnds(M: DFA):
-    pass
+# remove from machine.
+def minimise(M: DFA):
+    found_nodes = {M.start}
+    for state in M.states:
+        for c in M.alphabet:
+            connection = M.delta(state, c)
+            if state != connection:
+                found_nodes.add(connection)
+    M.states = tuple(found_nodes)
 
 def transition_function(instructions: dict):
     def delta(state, input):
@@ -115,6 +123,7 @@ def transition_function(instructions: dict):
 if __name__ == "__main__":
 
     # # this is Example 1.16 from Sipser.
+    print("A few tests:")
     Q = ("1", "2", "3")
     Sigma = ("a", "b")
     delta = transition_function({
@@ -124,7 +133,9 @@ if __name__ == "__main__":
     q0 = "1"
     F = ("1",)
     N = NFA(Q, Sigma, delta, q0, F)
+    # convert the machine to DFA via the powerset construction.
     M = NFAtoDFA(N)
+    # tests as per Sipser
     trues = ["", "a", "baba", "baa"]
     falses = ["b", "bb", "babba"]
     print("These should be true.")
@@ -133,3 +144,10 @@ if __name__ == "__main__":
     print("These should be false.")
     for j in falses:
         print(M.read(j))
+    print("This is the original NFA.")
+    print(N)
+    print("This is the converted DFA.")
+    print(M)
+    minimise(M)
+    print("Now with the inaccessible nodes cut.")
+    print(M)
